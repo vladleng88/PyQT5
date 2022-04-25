@@ -10,34 +10,53 @@ class MyThread(QtCore.QThread):
     def run(self):
         while True:
             task = self.__queue.get(block = True)
-            self.sleep(task)
             self.mysignal.emit(self.__id, task)
+            self.sleep(task+1)
             self.__queue.task_done()
-
+import time
 class MyWindow(QtWidgets.QWidget):
     def __init__(self):
         super(MyWindow, self).__init__()
         self.queue = queue.Queue()
         vbox = QtWidgets.QVBoxLayout()
         self.btn = QtWidgets.QPushButton('Раздать задание')
+        self.btnStop = QtWidgets.QPushButton('Прервать расчет')
         self.label = QtWidgets.QLabel('Length of queue is {}'.format(self.queue.qsize()))
         vbox.addWidget(self.label)
         vbox.addWidget(self.btn)
+        vbox.addWidget(self.btnStop)
         self.setLayout(vbox)
         self.threads = []
         for i in range(3):
             thread = MyThread(i, self.queue)
             self.threads.append(thread)
             thread.mysignal.connect(self.printResults, QtCore.Qt.QueuedConnection)
-            thread.start()
         self.btn.clicked.connect(self.add_queue)
+        self.btnStop.clicked.connect(self.stop_queue)
 
+    def stop_queue(self):
+        for thread in self.threads:
+            if thread.isRunning():
+                thread.terminate()
+                thread.wait(500)
+        try:
+            #for elem in range(self.queue.qsize()):
+            while True:
+                self.queue.get(False)
+        except queue.Empty:
+            print('Empty queue')
+        self.label.setText('The length of queue is ' + str(self.queue.qsize()))
+        self.btn.setDisabled(False)
     def add_queue(self):
         for i in range(10):
             self.queue.put(i)
-            print(self.queue.qsize())
-        self.label.setText('The length of queue is' + str(self.queue.qsize()))
+        self.label.setText('The length of queue is ' + str(self.queue.qsize()))
+        QtWidgets.qApp.processEvents()
+        #time.sleep(1)
         self.btn.setDisabled(True)
+        for i in range(len(self.threads)):
+            self.threads[i].start()
+
     def printResults(self, id, task):
         self.label.setText('The length of queue is ' + str(self.queue.qsize()))
         QtWidgets.qApp.processEvents()
