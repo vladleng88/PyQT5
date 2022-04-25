@@ -82,7 +82,7 @@ class MyWindow(QtWidgets.QWidget):
             thread.started.connect(partial(self.start_thread_dispatcher, thread.getId()))
             thread.mysignal.connect(self.mysignal_dispatcher)
             thread.quitsignal.connect(partial(self.quit_thread_dispatcher, thread.getId()))
-
+            thread.finished.connect(self.finished_thread_dispatcher)
     """
         self.process1 = MyThread1()
         self.process2 = MyThread2()
@@ -93,6 +93,13 @@ class MyWindow(QtWidgets.QWidget):
         self.process1.s1.connect(self.process2.changeStr)
         self.process2.s2.connect(self.exchange_between_processes)
     """
+    def finished_thread_dispatcher(self):
+        quitKey = True
+        for thread in self.myThreadList:
+           if thread.isRunning():
+               quitKey = False
+        if quitKey:
+           self.btn.setDisabled(False)
     def exchange_between_processes(self, str):
         print('exchange_between_processes is done')
         print('str received:', str)
@@ -110,8 +117,7 @@ class MyWindow(QtWidgets.QWidget):
                 thread.terminate()
                 thread.wait(5000)
         self.btn.setDisabled(False)
-            #self.mythread.terminate()
-            #self.mythread.wait(5000)
+
 
     def on_clicked_btnClear(self):
         for i,label in enumerate(self.myLabelList):
@@ -126,21 +132,11 @@ class MyWindow(QtWidgets.QWidget):
 
     def quit_thread_dispatcher(self, id):
         self.myLabelList[id].setText('Process № {}: The work is done!'.format(id))
-        #quitKey = True
-        #for thread in self.myThreadList:
-        #    if thread.isRunning():
-        #        quitKey = False
-        #if quitKey:
-        #    self.btn.setDisabled(False)
 
-    """
-    def mysignal2_dispatcher(self, number):
-        self.label2.setText('Actual number {}'.format(number))  
-    """
     def mysignal_dispatcher(self, dictRes):
         id = dictRes['id']
-        #text = self.myLabelList[id].text()
         self.myLabelList[id].setText('Process № {}: iter= {}'.format(dictRes['id'], dictRes['value']))
+        QtWidgets.qApp.processEvents()
 
         """
         if self.mythread.isRunning():
@@ -160,17 +156,17 @@ class MyWindow(QtWidgets.QWidget):
         print('log:', eventStr)
 
     def closeEvent(self, event):
-        self.hide()
-        if self.mythread.isRunning():
-            print('terminatin mythread...')
-            self.mythread.terminate()
-            self.mythread.wait(5000)
-            if self.mythread.isRunning():
-                print('mythread still work...')
-            else:
-                print('mythread is stopped')
-            event.accept()
-
+        for thread in self.myThreadList:
+            if thread.isRunning():
+                print('thread', thread, 'is terminating...')
+                thread.terminate()
+                thread.wait(5000)
+                if thread.isRunning():
+                    print('thread'+str(thread)+' still work...')
+                else:
+                    print('thread'+str(thread)+' is stopped')
+        event.accept()
+        #if not self.
 if __name__ == '__main__':
     print('start QThread lesson')
     try:
